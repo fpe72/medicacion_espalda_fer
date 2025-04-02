@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seguimiento de Medicación</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #d1c4e9, #b2ebf2);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h1 {
+      text-align: center;
+      color: #4a148c;
+      margin-bottom: 10px;
+    }
+    .card {
+      background: #fdf7ff;
+      padding: 20px;
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+    .day-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .day-nav button {
+      background-color: #ba68c8;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    .day-nav button:hover {
+      background-color: #ab47bc;
+    }
+    #current-date {
+      font-weight: bold;
+      color: #6a1b9a;
+    }
+    select {
+      width: 100%;
+      margin-top: 5px;
+      padding: 6px;
+      font-size: 1rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    .dose {
+      margin: 10px 0;
+      background-color: #ede7f6;
+      padding: 10px;
+      border-radius: 10px;
+    }
+    .notify {
+      background: #fff3e0;
+      padding: 10px;
+      border-left: 4px solid orange;
+      margin-top: 10px;
+      font-size: 0.9rem;
+      border-radius: 5px;
+    }
+    button {
+      background-color: #6a1b9a;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      margin-top: 20px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #4a148c;
+    }
+    .green {
+      background-color: #c8e6c9 !important;
+      color: #1b5e20;
+      font-weight: bold;
+    }
+    .red {
+      background-color: #ef9a9a !important;
+      color: #b71c1c;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mi Medicación</h1>
+  <div class="card">
+    <div class="day-nav">
+      <button onclick="changeDay(-1)">←</button>
+      <div id="current-date"></div>
+      <button onclick="changeDay(1)">→</button>
+    </div>
+    <div id="dose-list"></div>
+    <div id="alert" class="notify" style="display:none"></div>
+    <button onclick="goToToday()">📆 Ir al día actual</button>
+    <button onclick="exportToCalendar()">📅 Exportar a Calendario</button>
+  </div>
+
+  <script>
+    const startDate = new Date("2025-03-31");
+    const today = new Date();
+    let currentOffset = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
+
+    const medications = [
+      { name: "NAPROXENO 500MG", schedule: ["M", "N"], duration: 15 },
+      { name: "FORTECORTIN 4MG", schedule: ["M"], days: [0,1,2,4,6,8] },
+      { name: "OMEPRAZOL 20MG", schedule: ["M"], duration: 28 },
+      { name: "LYRICA 25MG", schedule: ["N"], duration: 28 },
+    ];
+
+    function getDayDate(offset) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + offset);
+      return d;
+    }
+
+    function formatDate(date) {
+      return date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
+    }
+
+    function getStorageKey(medName, time, offset) {
+      return `med_${medName}_${time}_${offset}`;
+    }
+
+    function renderDay(offset) {
+      const date = getDayDate(offset);
+      document.getElementById("current-date").textContent = formatDate(date);
+
+      const container = document.getElementById("dose-list");
+      container.innerHTML = "";
+
+      const hour = new Date().getHours();
+      let upcoming = [];
+
+      medications.forEach((med) => {
+        const show = med.days ? med.days.includes(offset) : offset < med.duration;
+        if (!show) return;
+
+        med.schedule.forEach((s) => {
+          const doseTime = s === "M" ? "08:00" : "22:00";
+          const label = s === "M" ? "🌞 Mañana" : "🌙 Noche";
+
+          const doseDiv = document.createElement("div");
+          doseDiv.className = "dose";
+
+          const select = document.createElement("select");
+          select.innerHTML = `
+            <option value="☐">No tomado</option>
+            <option value="☑">Tomado</option>
+          `;
+
+          const key = getStorageKey(med.name, s, offset);
+          const saved = localStorage.getItem(key);
+          if (saved === "☑") {
+            select.value = "☑";
+            select.className = "green";
+          } else {
+            select.value = "☐";
+            select.className = "red";
+          }
+
+          select.addEventListener("change", () => {
+            localStorage.setItem(key, select.value);
+            select.classList.toggle("green", select.value === "☑");
+            select.classList.toggle("red", select.value === "☐");
+          });
+
+          doseDiv.innerHTML = `
+            <strong>${med.name}</strong><br>
+            ${label} - <small>${doseTime}</small><br>
+          `;
+          doseDiv.appendChild(select);
+          container.appendChild(doseDiv);
+
+          const doseHour = parseInt(doseTime.split(":"[0]));
+          const todayOffset = Math.floor((new Date() - startDate) / (1000 * 60 * 60 * 24));
+          if (offset === todayOffset && hour <= doseHour && hour >= doseHour - 1) {
+            upcoming.push(`${med.name} a las ${doseTime}`);
+          }
+        });
+      });
+
+      const alert = document.getElementById("alert");
+      alert.style.display = upcoming.length > 0 ? "block" : "none";
+      alert.textContent = upcoming.length > 0 ? `🔔 Recuerda tomar: ${upcoming.join(", ")}` : "";
+    }
+
+    function changeDay(delta) {
+      currentOffset = Math.max(0, Math.min(27, currentOffset + delta));
+      renderDay(currentOffset);
+    }
+
+    function goToToday() {
+      currentOffset = Math.floor((new Date() - startDate) / (1000 * 60 * 60 * 24));
+      renderDay(currentOffset);
+    }
+
+    function exportToCalendar() {
+      let ics = `BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\n`;
+      for (let i = 0; i < 28; i++) {
+        const day = getDayDate(i);
+        medications.forEach((med) => {
+          const show = med.days ? med.days.includes(i) : i < med.duration;
+          if (!show) return;
+          med.schedule.forEach((s) => {
+            const hour = s === "M" ? 8 : 22;
+            const dtStart = new Date(day);
+            dtStart.setHours(hour, 0, 0);
+            const dtEnd = new Date(dtStart.getTime() + 30 * 60 * 1000);
+            const uid = `${med.name.replace(/\s+/g, '')}-${i}-${s}@medtracker`
+
+            function toICALString(date) {
+              return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            }
+
+            ics += `BEGIN:VEVENT\nSUMMARY:${med.name}\nUID:${uid}\nDTSTART:${toICALString(dtStart)}\nDTEND:${toICALString(dtEnd)}\nDESCRIPTION:Toma de medicamento (${s === "M" ? "Mañana" : "Noche"})\nEND:VEVENT\n`;
+          });
+        });
+      }
+      ics += `END:VCALENDAR`;
+
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'medicacion.ics';
+      link.click();
+    }
+
+    renderDay(currentOffset);
+  </script>
+</body>
+</html>
