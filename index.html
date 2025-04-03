@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -119,7 +120,7 @@
 
     const medications = [
       { name: "NAPROXENO 500MG", schedule: ["M", "N"], duration: 15 },
-      { name: "FORTECORTIN 4MG", schedule: ["M"], days: [0,1,2,4,6,8] },
+      { name: "FORTECORTIN 4MG", schedule: ["M"], days: [1, 2, 3, 5, 7, 9] },
       { name: "OMEPRAZOL 20MG", schedule: ["M"], duration: 28 },
       { name: "LYRICA 25MG", schedule: ["N"], duration: 28 },
     ];
@@ -212,7 +213,10 @@
     }
 
     function exportToCalendar() {
-      let ics = `BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\n`;
+      let ics = `BEGIN:VCALENDAR
+VERSION:2.0
+CALSCALE:GREGORIAN
+`;
       for (let i = 0; i < 28; i++) {
         const day = getDayDate(i);
         medications.forEach((med) => {
@@ -229,7 +233,14 @@
               return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
             }
 
-            ics += `BEGIN:VEVENT\nSUMMARY:${med.name}\nUID:${uid}\nDTSTART:${toICALString(dtStart)}\nDTEND:${toICALString(dtEnd)}\nDESCRIPTION:Toma de medicamento (${s === "M" ? "Mañana" : "Noche"})\nEND:VEVENT\n`;
+            ics += `BEGIN:VEVENT
+SUMMARY:${med.name}
+UID:${uid}
+DTSTART:${toICALString(dtStart)}
+DTEND:${toICALString(dtEnd)}
+DESCRIPTION:Toma de medicamento (${s === "M" ? "Mañana" : "Noche"})
+END:VEVENT
+`;
           });
         });
       }
